@@ -1,0 +1,36 @@
+{
+    "name": "Untitled",
+    "bpm": 120,
+    "time_signature": "4/4",
+    "key_signature": "C Major",
+    "patterns": [
+        {
+            "name": "Pattern 1",
+            "filename": "pattern1.pattern"
+        }
+    ],
+    "samples": [
+        "07-ball_roll.sample",
+        "08-ball_roll2.sample",
+        "09-ball-jump.sample",
+        "10-boing00.sample",
+        "11-boing01.sample",
+        "12-boing02.sample",
+        "13-boing03.sample",
+        "14-boing04.sample",
+        "15-correct_guess.sample",
+        "16-hover.sample",
+        "17-incorrect_guess.sample",
+        "18-pickup.sample",
+        "19-portal_loop.sample",
+        "20-portal_loop01.sample",
+        "21-portal_loop02.sample",
+        "22-portal_loop03.sample",
+        "23-portal_loop04.sample",
+        "24-portal_loop05.sample",
+        "25-portal_loop06.sample",
+        "26-soul-symphony.sample",
+        "27-start-dialog.sample",
+        "28-warp.sample"
+    ]
+}

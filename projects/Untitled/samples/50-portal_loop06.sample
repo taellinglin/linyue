@@ -1,0 +1,16 @@
+{
+    "name": "portal_loop06",
+    "filename": "50-portal_loop06.wav",
+    "root_note": 60,
+    "micropitch": 0,
+    "length": 1999,
+    "frame_count": 88163.0,
+    "loop_start": 0,
+    "loop_end": 0,
+    "format": {
+        "bit_depth": 32,
+        "sample_rate": 44100,
+        "channels": 1
+    },
+    "wav_filename": "50-portal_loop06.wav"
+}

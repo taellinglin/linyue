@@ -1,0 +1,16 @@
+{
+    "name": "correct_guess",
+    "filename": "40-correct_guess.wav",
+    "root_note": 60,
+    "micropitch": 0,
+    "length": 4011,
+    "frame_count": 176891.0,
+    "loop_start": 0,
+    "loop_end": 0,
+    "format": {
+        "bit_depth": 32,
+        "sample_rate": 44100,
+        "channels": 2
+    },
+    "wav_filename": "40-correct_guess.wav"
+}

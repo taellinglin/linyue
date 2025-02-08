@@ -1,0 +1,16 @@
+{
+    "name": "portal_loop",
+    "filename": "13-portal_loop.wav",
+    "root_note": 60,
+    "micropitch": 0,
+    "length": 1999,
+    "frame_count": 88152.0,
+    "loop_start": 0,
+    "loop_end": 0,
+    "format": {
+        "bit_depth": 32,
+        "sample_rate": 44100,
+        "channels": 1
+    },
+    "wav_filename": "./samples/13-portal_loop.wav"
+}

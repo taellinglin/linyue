@@ -1,0 +1,16 @@
+{
+    "name": "boing02",
+    "filename": "37-boing02.wav",
+    "root_note": 60,
+    "micropitch": 0,
+    "length": 281,
+    "frame_count": 12407.0,
+    "loop_start": 0,
+    "loop_end": 0,
+    "format": {
+        "bit_depth": 32,
+        "sample_rate": 44100,
+        "channels": 2
+    },
+    "wav_filename": "37-boing02.wav"
+}
