@@ -8,11 +8,13 @@ from ui_composer import ComposerTab
 from ui_mixer import MixerTab
 from ui_sampler import SamplerTab
 from ui_arrange import ArrangeTab
+from ui_tracker import TrackerTab
 from PyQt5.QtCore import Qt, QMimeData, QEvent
 from PyQt5.QtGui import QPixmap, QPainter, QDrag
 
 from PyQt5.QtWidgets import QPushButton
 import glob
+import shutil
 class DraggableButton(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
@@ -39,39 +41,50 @@ class DraggableButton(QPushButton):
 class TrackerDAWUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Tracker DAW")
+        self.setWindowTitle("LinYue Music Maker")
         self.setGeometry(0, 0, 1920, 1080)  # Full-screen dimensions
-        self.samples = {}
-        self.patterns = []
-        self.project_name = "Untitled"  # Default to an empty string instead of None
-        self.time_signature = "4/4"
-        self.samples = self.get_sample_list()    # Initialize Tabs
+        self.project_name = "Untitled"
         self.tabs = QTabWidget(self)
         self.setCentralWidget(self.tabs)
-        
+        self.samples = {}
+        self.patterns = {}
         # Project Settings Tab (first tab)
         self.project_tab = QWidget()
-        self.tabs.addTab(self.project_tab, "Project Settings")
+        self.tabs.addTab(self.project_tab, "Project")
+        
+        # Initialize the UI and set up the layout
         self.setup_project_settings()
+
+        # Load project data (if available) after UI setup
         self.project_data = self.get_project_data()
+        self.project_name = self.project_data.get("name")
+        print(f"Project {self.project_name} has been loaded.")
+        self.samples = self.project_data.get("samples")
+        print(self.samples)
+        self.patterns = self.project_data.get("patterns")
+        print(self.patterns)
+        self.update_ui_with_project_data(self.project_data)
+        
         print(enumerate(self.project_data.get("samples")))
-        self.samples = self.get_sample_list()
         
         # Add other Tabs
-        self.arrange_tab = ArrangeTab()
+        self.arrange_tab = ArrangeTab(self)
         self.tabs.addTab(self.arrange_tab, "Arrange")
         
-        self.sequencer_tab = SequencerTab(self.samples, self.get_patterns_data())
+        self.sequencer_tab = SequencerTab(self)
         self.tabs.addTab(self.sequencer_tab, "Sequencer")
         
-        self.composer_tab = ComposerTab(self.samples, self.get_patterns_data(), self.project_name, self.time_signature)
+        self.tracker_tab = TrackerTab(self)
+        self.tabs.addTab(self.tracker_tab, "Tracker")
+        
+        self.composer_tab = ComposerTab(self)
         self.tabs.addTab(self.composer_tab, "Composer")
         
-        self.mixer_tab = MixerTab()
+        self.mixer_tab = MixerTab(self)
         self.tabs.addTab(self.mixer_tab, "Mixer")
 
         # Ensure self.project_name is not None when passing it to SamplerTab
-        self.sampler_tab = SamplerTab(self.samples, self.project_name or "Untitled")
+        self.sampler_tab = SamplerTab(self)
         self.tabs.addTab(self.sampler_tab, "Sampler")
         
         # Setup Menu Bar
@@ -82,6 +95,7 @@ class TrackerDAWUI(QMainWindow):
         self.tabs.currentChanged.connect(self.update_sampler_tab)
 
         self.current_project = {}
+        
     def load_sample_files(self):
         """Scans the project's sample folder and updates self.samples with .sample files."""
         samples_folder = os.path.join("projects", self.project_name, "samples")
@@ -103,32 +117,37 @@ class TrackerDAWUI(QMainWindow):
             self.samples[sample_name] = sample_path  # Ensure self.samples is a dictionary
 
         print(f"Loaded {len(self.samples)} sample files.")
+        
     def initialize_tabs(self):
         # Ensure project name is not None or empty when passing to tabs
         project_name = self.project_name or "Untitled"
         time_signature = self.time_signature
         # Add other Tabs
-        self.arrange_tab = ArrangeTab()
+        self.arrange_tab = ArrangeTab(self)
         self.tabs.addTab(self.arrange_tab, "Arrange")
 
-        self.sequencer_tab = SequencerTab(self.samples, self.get_patterns_data())
+        self.sequencer_tab = SequencerTab(self)
         self.tabs.addTab(self.sequencer_tab, "Sequencer")
+        
+        self.tracker_tab = TrackerTab(self)
+        self.tabs.addTab(self.tracker_tab, "Tracker")
 
-        self.composer_tab = ComposerTab(self.samples, self.get_patterns_data(), self.project_name, time_signature)
+        self.composer_tab = ComposerTab(self)
         self.tabs.addTab(self.composer_tab, "Composer")
 
         self.mixer_tab = MixerTab()
         self.tabs.addTab(self.mixer_tab, "Mixer")
 
         # Pass the correct project name to the SamplerTab
-        self.sampler_tab = SamplerTab(self.samples, project_name)
+        self.sampler_tab = SamplerTab(self)
         self.tabs.addTab(self.sampler_tab, "Sampler")
 
     def update_sampler_tab(self):
         """Update the SamplerTab with the current project name."""
         # Whenever the "Samples" tab is clicked, update its project name
         if self.tabs.currentIndex() == 4:  # Check if the "Samples" tab is selected (index 4)
-            self.sampler_tab.update_project_name(self.project_name)
+            self.sampler_tab.update_project_name(self.project_data.get("name"))
+
 
         
     def get_sample_list(self):
@@ -137,25 +156,84 @@ class TrackerDAWUI(QMainWindow):
         return [sample['name'] for sample in self.samples]
 
     def setup_project_settings(self):
+        """Setup the project settings UI layout."""
         layout = QFormLayout()
         
+        # Project Name Input
         self.project_name_input = QLineEdit()
         layout.addRow("Project Name:", self.project_name_input)
         
+        # BPM Input
         self.bpm_input = QSpinBox()
         self.bpm_input.setRange(30, 300)
-        self.bpm_input.setValue(120)
         layout.addRow("BPM:", self.bpm_input)
         
+        # Time Signature ComboBox
         self.time_signature = QComboBox()
         self.time_signature.addItems(["4/4", "3/4", "6/8", "5/4", "7/8"])
         layout.addRow("Time Signature:", self.time_signature)
         
+        # Key Signature ComboBox
         self.key_signature = QComboBox()
         self.key_signature.addItems(["C Major", "G Major", "D Major", "A Minor", "E Minor"])
         layout.addRow("Key Signature:", self.key_signature)
         
+        # Set layout for the project tab
         self.project_tab.setLayout(layout)
+
+    def get_project_data(self):
+        """Load the project data from ./projects/{self.project_name}/{self.project_name}.project at startup."""
+        if not self.project_name:
+            print("Error: Project name is empty!")
+            return {
+                "name": "Untitled",
+                "bpm": 120,
+                "time_signature": "4/4",
+                "key_signature": "C Major"
+            }  # Return defaults if no project is set
+
+        project_dir = os.path.join("projects", self.project_name)
+        os.makedirs(project_dir, exist_ok=True)  # Ensure the project directory exists
+
+        project_file = os.path.join(project_dir, f"{self.project_name}.project")
+
+        if os.path.exists(project_file):
+            try:
+                with open(project_file, "r") as f:
+                    return json.load(f)  # Load existing project data
+            except Exception as e:
+                print(f"Error loading project data: {e}")
+
+        # If the file doesn't exist or fails to load, return defaults and create the file
+        default_data = {
+            "name": self.project_name,
+            "bpm": 120,
+            "time_signature": "4/4",
+            "key_signature": "C Major"
+        }
+
+        try:
+            with open(project_file, "w") as f:
+                json.dump(default_data, f, indent=4)  # Save default project data
+        except Exception as e:
+            print(f"Error saving default project data: {e}")
+
+        return default_data  # Return default data if file wasn't found or failed to load
+
+    def update_ui_with_project_data(self, project_data):
+        """Update the UI with loaded project data."""
+        # Project Name Input
+        self.project_name_input.setText(project_data.get("name", "Untitled"))
+        
+        # BPM Input
+        self.bpm_input.setValue(project_data.get("bpm", 120))
+        
+        # Time Signature ComboBox
+        self.time_signature.setCurrentText(project_data.get("time_signature", "4/4"))
+        
+        # Key Signature ComboBox
+        self.key_signature.setCurrentText(project_data.get("key_signature", "C Major"))
+
     
     def setup_menu(self):
         file_menu = self.menu_bar.addMenu("File")
@@ -315,22 +393,23 @@ class TrackerDAWUI(QMainWindow):
     def load_project(self):
         """Load a project file and update the UI."""
         file_name, _ = QFileDialog.getOpenFileName(self, "Load Project", "", "Project Files (*.project)")
-        
+
         if file_name:
             try:
                 # Open and load project data
                 with open(file_name, 'r') as file:
                     data = json.load(file)
 
-                # Ensure the project has a name before proceeding
-                self.project_name = self.get_project_name_from_file(data)  # Set the project name
+                # Use provided project name or get it from the file
+                self.project_name = data.get("name")
+
                 if not self.project_name:
                     print("Error: Project file is missing a name!")
                     return  # Exit early to prevent errors
-                
+
                 # Load project samples and other data
-                self.samples = self.load_samples(file_name)  # Load samples from the project file
-                
+                self.samples = self.sampler_tab.load_samples(file_name)  # Load samples from the project file
+
                 # Reinitialize tabs with the correct project name
                 self.initialize_tabs()
 
@@ -343,10 +422,9 @@ class TrackerDAWUI(QMainWindow):
 
                 self.set_project_data(data)  # Populate UI with loaded project data
                 self.current_project = data  # Store loaded project data
-                
+
             except Exception as e:
                 print(f"Error loading project: {e}")  # Handle loading errors
-
             
     def rename_project(self, new_project_name):
         self.project_name = new_project_name  # Set the new project name
@@ -393,27 +471,54 @@ class TrackerDAWUI(QMainWindow):
     
     def get_project_data(self):
         # Collect and return project data including patterns and samples
+        project_name = self.project_name_input.text()
         return {
             "name": self.project_name_input.text(),
             "bpm": self.bpm_input.value(),
             "time_signature": self.time_signature.currentText(),
             "key_signature": self.key_signature.currentText(),
-            "patterns": self.get_patterns_data(),
-            "samples": self.get_samples_data()
+            "patterns": self.get_patterns_data(project_name),
+            "samples": self.get_samples_data(project_name)
         }
     
-    def get_patterns_data(self):
-        # Collect patterns data (stub, adjust based on how patterns are managed in your project)
-        return [{"name": "Pattern 1", "filename": "pattern1.pattern"}]
-    
-    def get_samples_data(self):
-        # Collect samples data (stub, adjust based on how samples are managed in your project)
-        return [{"name": "Sample 1", "filename": "sample1.wav"}]
+    def get_patterns_data(self, project_name):
+        patterns_dir = os.path.join('./projects/', project_name, '/patterns')
+        patterns_data = []
+        
+        # Check if the patterns folder exists and collect .pattern files
+        if os.path.exists(patterns_dir):
+            for filename in os.listdir(patterns_dir):
+                if filename.endswith('.pattern'):
+                    patterns_data.append({
+                        "name": filename.replace('.pattern', ''),
+                        "filename": filename
+                    })
+        else:
+            print(f"Patterns folder not found in {patterns_dir}")
+        
+        return patterns_data
+
+    def get_samples_data(self, project_name):
+        samples_dir = os.path.join('./projects/', project_name, '/samples')
+        samples_data = []
+        
+        # Check if the samples folder exists and collect .wav files
+        if os.path.exists(samples_dir):
+            for filename in os.listdir(samples_dir):
+                if filename.endswith('.wav'):
+                    samples_data.append({
+                        "name": filename.replace('.wav', ''),
+                        "filename": filename
+                    })
+        else:
+            print(f"Samples folder not found in {samples_dir}")
+        
+        return samples_data
     
     def set_project_data(self, data):
         """Populate the GUI with loaded project data."""
         # Update Project Properties
-        self.project_name_input.setText(data.get("name", ""))
+        self.project_name_input.setText(data.get("name", "Untitled"))
         self.bpm_input.setValue(data.get("bpm", 120))
         self.time_signature.setCurrentText(data.get("time_signature", "4/4"))
         self.key_signature.setCurrentText(data.get("key_signature", "C Major"))

@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLab
 from PyQt5.QtCore import Qt, QTimer
 
 class ArrangeTab(QWidget):
-    def __init__(self):
+    def __init__(self, parent_node):
         super().__init__()
 
         # === Main Layout: Left Sidebar + Grid + Right Sidebar ===

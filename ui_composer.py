@@ -439,12 +439,12 @@ from pypianoroll import read as pypianoroll_read
 
 
 class ComposerTab(QWidget):
-    def __init__(self, samples, patterns, project_name, time_signature):
+    def __init__(self, parent_node):
         super().__init__()
-        self.project_name = project_name
-        self.time_signature = time_signature
-        self.samples = samples
-        self.patterns = patterns
+        self.project_name = parent_node.project_data.get("name")
+        self.time_signature = parent_node.time_signature
+        self.samples = parent_node.samples
+        self.patterns = parent_node.patterns
         self.pianoroll = PianoRollView(self.time_signature)
         layout = QVBoxLayout()
 
@@ -501,7 +501,7 @@ class ComposerTab(QWidget):
         self.compose_sample_list.itemClicked.connect(self.on_item_clicked)
 
         # Populate sample dropdown with sample names
-        self.populate_sample_dropdown(samples)
+        self.populate_sample_dropdown(parent_node.samples)
 
         # Connect playback buttons to their functions
         self.play_button.clicked.connect(self.playback_start)

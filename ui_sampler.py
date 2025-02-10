@@ -13,18 +13,19 @@ import tempfile
 import shutil
 
 class SamplerTab(QWidget):
-    def __init__(self, samples, project_name="NewProject"):
+    def __init__(self, parent_node):
         super().__init__()
 
-        self.project_name = project_name
-        self.samples = {}
+        self.project_name = parent_node.project_data.get("name")
+        self.samples = parent_node.samples
         self.current_sample = None
 
         # Initialize pygame mixer
         pygame.mixer.init()
 
         # Load the project JSON
-        self.project_data = self.load_project_data()
+        self.project_data = parent_node.project_data
+        
 
         # === Main Layout: Sidebar + Sample Display ===
         main_layout = QHBoxLayout()
@@ -32,14 +33,15 @@ class SamplerTab(QWidget):
         # === LEFT PANEL: SAMPLE SELECTOR ===
         self.left_panel = QWidget()
         self.left_panel_layout = QVBoxLayout()
-
-        self.load_button = QPushButton("Load Samples")
-        self.load_button.clicked.connect(self.load_samples)
+        # New "Add Sample" Button
+        self.add_button = QPushButton("Add Sample")
+        self.add_button.clicked.connect(self.add_sample)
+        
 
         self.sample_list = QListWidget()
         self.sample_list.itemClicked.connect(self.select_sample)
-
-        self.left_panel_layout.addWidget(self.load_button)
+        self.load_samples(True)
+        self.left_panel_layout.addWidget(self.add_button)
         self.left_panel_layout.addWidget(self.sample_list)
         self.left_panel.setLayout(self.left_panel_layout)
         main_layout.addWidget(self.left_panel, 2)
@@ -90,68 +92,128 @@ class SamplerTab(QWidget):
 
         # Connect slider to change playback speed
         self.microtuning_slider.valueChanged.connect(self.adjust_pitch)
-        
+    def get_project_name_from_file(self):
+        """Retrieves the project name by finding the first valid .project file in ./projects."""
+        projects_dir = "projects"
 
-    def load_samples(self):
-        """Load multiple WAV files, save them in the project's sample folder, and create metadata JSON files."""
-        files, _ = QFileDialog.getOpenFileNames(self, "Select Samples", "", "WAV Files (*.wav)")
-        if not files:
-            return
+        if not os.path.exists(projects_dir):
+            os.makedirs(projects_dir, exist_ok=True)  # Ensure the projects folder exists
+            return "Untitled"  # Default if no projects exist
+
+        for folder in os.listdir(projects_dir):
+            project_file = os.path.join(projects_dir, folder, f"{folder}.project")
+            if os.path.exists(project_file):
+                try:
+                    with open(project_file, "r") as f:
+                        project_data = json.load(f)
+                    return project_data.get("name", folder)  # Use project name from file or folder name
+                except Exception as e:
+                    print(f"Error loading project data: {e}")
+
+        return "Untitled"  # Default if no valid project is found
+
+
+    def load_samples(self, force_reload=False):
+        """Loads samples from the project's sample folder (only once per session)."""
 
         if not self.project_name:
-            print("Error: Project name is empty!")
-            return  # Exit the function to prevent incorrect folder creation
+            self.project_name = self.get_project_name_from_file()
+
+        if not self.project_name:
+            print("Error: Could not determine project name.")
+            return  # Prevent incorrect folder access
+
+        project_sample_dir = os.path.join("projects", self.project_name, "samples")
+        os.makedirs(project_sample_dir, exist_ok=True)  # Ensure the directory exists
+
+        # ✅ Avoid duplicates: Clear and reload only if necessary
+        if not force_reload and getattr(self, "samples_loaded", False):
+            print("Samples already loaded. Skipping duplicate load.")
+            return  # Exit early to prevent reloading
+
+        self.samples = {}  # Reset dictionary
+        self.sample_list.clear()  # Reset UI sample list
+
+        existing_files = [f for f in os.listdir(project_sample_dir) if f.endswith(".wav")]
+
+        for filename in sorted(existing_files):
+            sample_name, _ = os.path.splitext(filename)
+            file_path = os.path.join(project_sample_dir, filename)
+
+            metadata_filename = f"{sample_name}.sample"
+            metadata_filepath = os.path.join(project_sample_dir, metadata_filename)
+
+            if os.path.exists(metadata_filepath):
+                try:
+                    with open(metadata_filepath, "r") as f:
+                        sample_metadata = json.load(f)
+                except Exception as e:
+                    print(f"Error reading metadata for {filename}: {e}")
+                    continue
+            else:
+                print(f"Warning: Missing metadata for {filename}, skipping it.")
+                continue
+
+            # ✅ Store metadata and update UI
+            self.samples[metadata_filename] = metadata_filepath
+            self.sample_list.addItem(metadata_filename)
+
+        # ✅ Mark samples as loaded to prevent duplicate loads
+        self.samples_loaded = True
+        print(f"Loaded {len(self.samples)} samples from {project_sample_dir}.")
+
+    def add_sample(self):
+        """Opens a file dialog to add a new sample and saves it to the project."""
+
+        file_path, _ = QFileDialog.getOpenFileName(None, "Select Sample File", "", "WAV Files (*.wav)")
+
+        if not file_path:
+            return  # User canceled selection
+
+        sample_name, _ = os.path.splitext(os.path.basename(file_path))
 
         project_sample_dir = os.path.join("projects", self.project_name, "samples")
         os.makedirs(project_sample_dir, exist_ok=True)
 
-        existing_files = [f for f in os.listdir(project_sample_dir) if f.endswith(".wav")]
-        existing_count = len(existing_files)
+        new_file_path = os.path.join(project_sample_dir, os.path.basename(file_path))
 
-        for i, file in enumerate(files, start=existing_count + 1):
-            filename = os.path.basename(file)
-            sample_name, _ = os.path.splitext(filename)
-            new_filename = f"{i:02d}-{filename}"
-            new_filepath = os.path.join(project_sample_dir, new_filename)
+        # ✅ Prevent duplicate additions
+        if os.path.exists(new_file_path):
+            print(f"Sample '{sample_name}' already exists in project. Skipping duplicate.")
+            return
 
-            # Load audio and export to project directory
-            audio = AudioSegment.from_wav(file)
-            audio.export(new_filepath, format="wav")
+        shutil.copy(file_path, new_file_path)  # Copy file to project
 
-            # Inside load_samples method after exporting the audio
-            sample_metadata = {
-                "name": sample_name,
-                "filename": new_filename,
-                "root_note": 60,  # Default to C4
-                "micropitch": 0,  # Default to 0 cents
-                "length": len(audio),  # Length in milliseconds
-                "frame_count": audio.frame_count(),  # Total number of frames
-                "loop_start": 0,  # Default to no looping
-                "loop_end": 0, 
-                "format": {
-                    "bit_depth": audio.sample_width * 8,  # Convert bytes to bits
-                    "sample_rate": audio.frame_rate,
-                    "channels": audio.channels
-                },
-                "wav_filename": f"{new_filename}"  # Add the relative path to the wav
-            }
+        # Generate metadata
+        audio = AudioSegment.from_wav(new_file_path)
+        sample_metadata = {
+            "name": sample_name,
+            "filename": os.path.basename(new_file_path),
+            "root_note": 60,
+            "micropitch": 0,
+            "length": len(audio),
+            "frame_count": audio.frame_count(),
+            "loop_start": 0,
+            "loop_end": 0,
+            "format": {
+                "bit_depth": audio.sample_width * 8,
+                "sample_rate": audio.frame_rate,
+                "channels": audio.channels
+            },
+            "wav_filename": os.path.basename(new_file_path)
+        }
 
-            # Save metadata to JSON file
-            metadata_filename = f"{i:02d}-{sample_name}.sample"
-            metadata_filepath = os.path.join(project_sample_dir, metadata_filename)
+        metadata_filename = f"{sample_name}.sample"
+        metadata_filepath = os.path.join(project_sample_dir, metadata_filename)
 
-            try:
-                with open(metadata_filepath, "w") as f:
-                    json.dump(sample_metadata, f, indent=4)
-            except Exception as e:
-                print(f"Error saving metadata: {e}")
+        with open(metadata_filepath, "w") as f:
+            json.dump(sample_metadata, f, indent=4)
 
-            # Store metadata filepath in self.samples
-            self.samples[metadata_filename] = metadata_filepath
-            self.sample_list.addItem(metadata_filename)
+        # ✅ Update UI
+        self.samples[metadata_filename] = metadata_filepath
+        self.sample_list.addItem(metadata_filename)
 
-        # Ensure the project data is saved
-        self.save_project_data()
+        print(f"Added new sample: {sample_name}")
 
 
     def update_project_name(self, project_name):
@@ -360,5 +422,4 @@ class SamplerTab(QWidget):
         pygame.mixer.music.stop()
         self.playing = False
         self.playback_position = 0
-
 

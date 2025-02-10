@@ -12,12 +12,12 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QScrollArea, QComboBox, QSizePolicy)
 
 class SequencerTab(QWidget):
-    def __init__(self, samples, pattern):
+    def __init__(self, parent_node):
         super().__init__()
 
-        self.samples = samples  # List of samples to populate the dropdown
-        self.pattern = pattern  # Placeholder for pattern data
-
+        self.samples = parent_node.samples  # List of samples to populate the dropdown
+        self.patterns = parent_node.patterns  # Placeholder for pattern data
+        
         # === Main Layout: Left Sidebar + Right Section ===
         main_layout = QHBoxLayout()
 

@@ -1,0 +1,16 @@
+{
+    "name": "default",
+    "filename": "default.wav",
+    "root_note": 60,
+    "micropitch": 0,
+    "length": 6006,
+    "frame_count": 288282.0,
+    "loop_start": 0,
+    "loop_end": 0,
+    "format": {
+        "bit_depth": 16,
+        "sample_rate": 48000,
+        "channels": 1
+    },
+    "wav_filename": "default.wav"
+}
